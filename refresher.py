@@ -23,6 +23,10 @@ Version:
 
     Version 1 uses users own email as sender and recipient
     Version 2 needs to be designed to utilize a send only mail server
+
+NOTE: YOU MUST EDIT THE email_me FUNCTION TO ADD YOUR OWN MAIL SETTINGS SUCH AS ADDRESS AND USERNAME AND PASSWORD since
+this is version 1. Best to configure the script to run as a cronjob and only have the file accessibly by root in both
+permissions and user/group.
 '''
 
 import sys
