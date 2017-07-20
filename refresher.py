@@ -16,50 +16,30 @@ Requirements:
 
     (1) Request module to download webpages
     (2) Beautifulsoup modules to parse through webpage
-    (3) Command Line argument to specify email address
-    (4) Modify files and save updated version
-    (5) Possible modules to send an email to the user with attached files
+    (3) Modify files and save updated version
+    (4) Possible modules to send an email to the user with attached files
 
-Usage: ./refresher.py -r user@example.com
-Required:
--r:         Recipient Address
+Version:
+
+    Version 1 uses users own email as sender and recipient
+    Version 2 needs to be designed to utilize a send only mail server
 '''
 
 import sys
-import getopt
 import bs4
 import requests
 import os
 import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
-commands = ["-r"]
 
-recipient_address = ""
 public_address = ""
 current_address = ""
-
-'''Prints out the usage of the program to the user'''
-def usage():
-    print("Usage:   ./refresher.py -r user@example.com")
-    print("Required:")
-    print("-r:      Recipient Address")
-    print("")
-    sys.exit()
-
-'''Gathers command line argument'''
-def options(arguments):
-
-    global recipient_address
-
-    try:
-        opts, args = getopt.getopt(arguments[1], "-r")
-    except getopt.GetoptError as err:
-        print(str(err))
-        usage()
-
-    for opt in args:
-        if opt == "-r":
-            recipient_address = args
+count = 0
 
 '''Function will pull IPv4 address and configure variable for address'''
 def public_pull():
@@ -75,6 +55,8 @@ def public_pull():
 '''Function wll now find all .ovpn files and store them in an array to be opened'''
 def find_ovpn():
 
+    global count
+
     ovpn_file = []
 
     # Running system command to find all files
@@ -85,6 +67,7 @@ def find_ovpn():
     # Appending each line of the file to the array
     for line in open_file:
         ovpn_file.append(line)
+        count += 1
 
     # This will remove the output file generated and also close the file
     os.system("rm -f output.txt")
@@ -110,25 +93,52 @@ def expression_checker(object):
     return False
 
 '''Function to email user with the updated files'''
-def email_me(attachments):
+def email_me(files):
 
+    attachments = []
 
+    msg = MIMEMultipart()
+    msg['From'] = ""
+    msg['To'] = ""
+    msg['Subject'] = "Updated OVPN Files"
 
+    body = "Attached to this email are your updated ovpn files"
 
+    msg.attach(MIMEText(body, 'plain'))
+
+    for file in files:
+
+        filename = "%s" %os.path.basename(file)
+        attachment =  open(file.rstrip('\n'), "rb")
+
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', "attachment; filename= %s" %filename)
+
+        msg.attach(part)
+        attachments.append(msg.as_string())
+
+    # Defaulted to use gmail. Update if using a different service
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login("<Enter email address>", "<enter pasword>")
+    server.sendmail("<Enter From Email Here>","<Enter To Address>" attachments[count-1])
+    server.quit()
 
 def main():
 
     public_pull()
-    #options(sys.argv)
-
-   # if len(sys.argv) < 2:
-    #    usage()
 
     files = find_ovpn()
 
-    for file in files:
-        if expression_checker(open(file.rstrip("\n"),"r").read()):
-            os.system("sed -i \"s/remote %s 1194/remote %s 1194/g\" %s" %(current_address, public_address, file))
+    if files == True:
+        for file in files:
+            if expression_checker(open(file.rstrip("\n"),"r").read()):
+                os.system("sed -i \"s/remote %s 1194/remote %s 1194/g\" %s" %(current_address, public_address, file))
 
+        email_me(files)
+        sys.exit()
+    sys.exit()
 
-#main()
+main()
